@@ -24,6 +24,13 @@ Accounting is responsible for resolving the partner (customer) from the `custome
 
 Before go-live, every customer in Sales Analyzer that will generate shipments must have a corresponding partner in Accounting with a matching `external_ref`.
 
+## Applicability
+
+Partner resolution applies to all event types:
+
+- `order_shipped`: resolve partner to create the delivery note.
+- `order_canceled_after_shipment` and `order_returned`: the `customer_ref` must match the same partner as the original shipment. Accounting should validate consistency.
+
 ## Error Handling
 
 - Sales Analyzer treats `404` from Accounting as a **permanent failure** (no retry).

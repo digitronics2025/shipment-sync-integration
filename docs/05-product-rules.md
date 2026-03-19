@@ -27,9 +27,16 @@ Accounting is responsible for resolving each line item's product from the `produ
   { "error": "invalid_unit", "unit": "box", "product_ref": "SKU-1001" }
   ```
 
+## Applicability
+
+Product resolution applies to all event types:
+
+- `order_shipped`: resolve products to create delivery note lines.
+- `order_canceled_after_shipment` and `order_returned`: resolve products to create receipt note lines. The same resolution rules apply.
+
 ## Partial Failures
 
-- If **any** line fails resolution, the entire request is rejected. No delivery note is created.
+- If **any** line fails resolution, the entire request is rejected. No document is created.
 - Sales Analyzer treats `404` as a **permanent failure** (no retry).
 
 ## Setup Requirement
