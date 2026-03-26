@@ -146,7 +146,23 @@ ACCOUNTING_URL=https://accounting.internal
 ACCOUNTING_INTEGRATION_TOKEN=<shared-secret>
 ```
 
-### 8. Tests
+### 8. Outbox control UI
+
+Build an operational control page for the `shipment_outbox` table.
+
+Data source: `shipment_outbox` table.
+
+Requirements:
+
+- List view with filters: `status` (`pending`, `sent`, `failed_permanent`, `canceled`), `event_type`, `order_id`, date range.
+- Detail view per entry: payload, status, attempts, next retry, timestamps, Accounting response (if stored).
+- Manual actions on individual entries:
+  - **Retry now** — reset a `failed_permanent` entry to `pending` with `next_retry_at = now()`. Only available for `failed_permanent` entries.
+  - **Cancel** — mark a `pending` entry as `canceled` to prevent it from being sent. Only available for `pending` entries.
+- Summary counts: pending, sent, failed, canceled — total and per event type.
+- This page is the **control plane** for the outbox. It writes to `shipment_outbox` only — it does not call Accounting directly.
+
+### 9. Tests
 
 Write tests covering all cases in `docs/08-test-plan.md` (Sales Analyzer section). Follow the testing conventions already used in this project.
 

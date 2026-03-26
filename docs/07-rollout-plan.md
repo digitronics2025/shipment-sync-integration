@@ -17,6 +17,8 @@
 5. Verify cancellation before sync: cancel an order with a `pending` outbox entry, confirm it is marked `canceled` and never sent.
 6. Verify cancellation after sync: cancel a shipped order, confirm a receipt/reversal note is created in Accounting referencing the original delivery.
 7. Verify return: return a shipped order, confirm a receipt/return note is created in Accounting referencing the original delivery.
+8. Verify Sales Analyzer outbox UI: list, filter, retry, and cancel actions work correctly.
+9. Verify Accounting audit UI: events appear with correct status, linked documents are clickable.
 
 ### Phase 3 — Controlled rollout
 
@@ -47,3 +49,5 @@
 - [ ] Confirm Sales Analyzer creates `order_canceled_after_shipment` outbox entries when an order is canceled after sync completes.
 - [ ] Confirm Sales Analyzer creates `order_returned` outbox entries when an order is returned after sync completes.
 - [ ] Confirm Accounting creates receipt/reversal and receipt/return notes that reference the original delivery.
+- [ ] Sales Analyzer outbox UI deployed and accessible to operators.
+- [ ] Accounting integration audit UI deployed and accessible to operators.

@@ -56,6 +56,124 @@
 | 9 | Return a partial quantity after shipment sync | Receipt/return note created with partial quantity; original delivery unchanged |
 | 10 | Cancel after shipment, then replay the cancel event | Only one receipt/reversal note in Accounting (idempotency) |
 
+## Sales Analyzer — Outbox UI Tests
+
+| # | Test case | Expected result |
+|---|-----------|-----------------|
+| 1 | Open outbox page with no filters | All entries listed, most recent first |
+| 2 | Filter by `status = failed_permanent` | Only failed entries shown |
+| 3 | Filter by `event_type = order_shipped` | Only shipped entries shown |
+| 4 | Filter by `order_id` | Only entries for that order shown |
+| 5 | View entry detail | Payload, status, attempts, next retry, timestamps, Accounting response displayed |
+| 6 | Retry a `failed_permanent` entry | Status reset to `pending`, `next_retry_at` set to now; worker picks it up on next run |
+| 7 | Cancel a `pending` entry | Status set to `canceled`; worker never sends it |
+| 8 | Summary counts displayed | Correct totals for pending, sent, failed, canceled per event type |
+
+## Accounting — Integration Audit UI Tests
+
+| # | Test case | Expected result |
+|---|-----------|-----------------|
+| 1 | Open audit page with no filters | All received events listed, most recent first |
+| 2 | Filter by `event_type = order_shipped` | Only shipped events shown |
+| 3 | Filter by `status = failed` | Only failed events shown |
+| 4 | Filter by `external_order_id` | Only events for that order shown |
+| 5 | View event detail | Payload, idempotency key, status, error info, linked document displayed |
+| 6 | Click linked document (delivery note) | Navigates to the delivery note in Accounting UI |
+| 7 | Click linked document (receipt/reversal note) | Navigates to the receipt note; shows original delivery reference |
+| 8 | Summary counts displayed | Correct totals for created, replayed, failed per event type |
+| 9 | Verify page is read-only | No edit, delete, or retry actions available |
+
+## UI Validation Checklist
+
+Run through these steps on staging with both UI pages open side by side.
+
+### Shipped — happy path
+
+- [ ] Ship an order in Sales Analyzer → outbox page shows `order_shipped` entry with `status = pending`
+- [ ] Worker sends it → outbox status updates to `sent`; Accounting audit page shows the event with `status = created` and a clickable delivery note link
+
+### Cancel before send
+
+- [ ] Ship an order, then click **Cancel** on the `pending` outbox entry before the worker runs → status changes to `canceled`
+- [ ] Confirm the worker skips it (status stays `canceled`) and no event appears on the Accounting audit page
+
+### Cancel after shipped sync
+
+- [ ] Ship an order, wait for `sent`, then cancel the order → new `order_canceled_after_shipment` entry appears in the outbox as `pending`
+- [ ] Worker sends it → outbox status updates to `sent`; Accounting audit page shows a receipt/reversal event linked to the original delivery note
+- [ ] Open the receipt/reversal detail on the Accounting page → original delivery reference is present and clickable
+
+### Return after shipped sync
+
+- [ ] Ship an order, wait for `sent`, then return the order → new `order_returned` entry appears in the outbox as `pending`
+- [ ] Worker sends it → outbox status updates to `sent`; Accounting audit page shows a receipt/return event linked to the original delivery note
+- [ ] Open the receipt/return detail on the Accounting page → original delivery reference is present and clickable
+
+### Retry safety
+
+- [ ] Ship an order with an unknown product → outbox entry becomes `failed_permanent`
+- [ ] Fix the product in Accounting, then click **Retry now** on the outbox entry → status resets to `pending`, worker picks it up
+- [ ] Delivery note created in Accounting; only one document exists (no duplicates from the retry)
+
+### Accounting page is read-only
+
+- [ ] Confirm no edit, delete, retry, or cancel buttons exist on the Accounting audit page
+- [ ] Confirm event detail view has no write actions
+
+### Mobile / small-screen basics
+
+- [ ] Both pages render without horizontal scroll on a 375px-wide viewport
+- [ ] Filters and summary counts are usable on mobile
+- [ ] Entry detail view is readable without truncation of key fields (order ID, status, event type)
+
+## E2E Validation Checklist
+
+Run this checklist against staging before rollout. Every item must pass.
+
+### Prerequisites
+
+- [ ] Staging Accounting and Sales Analyzer deployed with latest code
+- [ ] At least one partner in Accounting with matching `external_ref`
+- [ ] At least one product in Accounting with matching SKU
+- [ ] Shared auth token configured in both apps
+- [ ] `ACCOUNTING_URL` set in Sales Analyzer
+- [ ] Background worker enabled in Sales Analyzer
+
+### Shipped flow
+
+- [ ] Ship an order → delivery note appears in Accounting
+- [ ] Ship the same order again → no duplicate delivery note (idempotency)
+- [ ] Verify `Idempotency-Key` format: `sales-analyzer:order-shipped:<order_id>`
+
+### Cancel before sync
+
+- [ ] Ship an order, immediately cancel before worker sends → outbox entry marked `canceled`, no delivery note in Accounting
+
+### Cancel after sync
+
+- [ ] Ship an order, wait for delivery note, then cancel → receipt/reversal note created in Accounting referencing original delivery
+- [ ] Replay the cancel event → no duplicate receipt/reversal note (idempotency)
+- [ ] Verify original delivery note is unchanged
+
+### Return after sync
+
+- [ ] Ship an order, wait for delivery note, then return full quantity → receipt/return note created referencing original delivery
+- [ ] Return partial quantity → receipt/return note with partial quantity; original delivery unchanged
+- [ ] Replay the return event → no duplicate receipt/return note (idempotency)
+
+### Error handling
+
+- [ ] Ship with unknown `customer_ref` → `failed_permanent` in outbox, no delivery note
+- [ ] Ship with unknown `product_ref` → `failed_permanent` in outbox, no delivery note
+- [ ] Simulate Accounting `500` → worker retries with backoff, delivery note eventually created
+
+### Data integrity
+
+- [ ] Delivery note count in Accounting matches shipped order count in Sales Analyzer
+- [ ] Every cancel-after-sync has a matching receipt/reversal note
+- [ ] Every return has a matching receipt/return note
+- [ ] No outbox entries stuck in `pending` for more than 2 hours
+
 ## Monitoring Checks
 
 - No outbox entries stuck in `pending` for more than 2 hours without progression.

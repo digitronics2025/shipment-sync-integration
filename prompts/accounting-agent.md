@@ -184,6 +184,22 @@ Success (order_canceled_after_shipment / order_returned):
 
 ---
 
+### 11. Integration audit UI
+
+Build a read-only page for operators to monitor received integration events.
+
+Data source: `integration_shipments` table.
+
+Requirements:
+
+- List view with filters: `event_type`, `status` (`created`, `replayed`, `failed`), `external_order_id`, date range.
+- Detail view per event: payload, idempotency key, status, error info (if failed), linked document (delivery note or receipt note), original delivery reference (for cancel/return events).
+- Click-through to the linked document in Accounting's existing UI (delivery note, receipt/reversal note, or receipt/return note).
+- Summary counts: created, replayed, failed — total and per event type.
+- **Read-only.** No edit, delete, or retry actions. This page is an audit/monitoring tool, not a control plane.
+
+---
+
 ## CANCELLATION & RETURN POLICY — MUST FOLLOW
 
 1. **Posted documents are immutable.** This integration never modifies or deletes a delivery note, receipt/reversal note, or receipt/return note once created.
